@@ -8,37 +8,36 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 
 public class NoInputLagTickRateClient implements ClientModInitializer {
-	public static DeltaTracker.Timer inputDeltaTracker = new DeltaTracker.Timer(20.0f, 0, NoInputLagTickRateClient::tickTargetMspt);
+    public static DeltaTracker.Timer inputDeltaTracker = new DeltaTracker.Timer(20.0f, 0, NoInputLagTickRateClient::tickTargetMspt);
+    
+    private static long lastInputTime = 0;
 
-	@Override
-	public void onInitializeClient() {
-		WorldRenderEvents.START_MAIN.register((worldRenderContext) -> {
-			Minecraft mc = Minecraft.getInstance();
+    @Override
+    public void onInitializeClient() {
+        WorldRenderEvents.START_MAIN.register((worldRenderContext) -> {
+            Minecraft mc = Minecraft.getInstance();
 
-			if (mc.screen != null) {
-				mc.missTime = 1000;
-			}
+            if (mc.screen != null) {
+                mc.missTime = 1000;
+            }
 
-			if (mc.getOverlay() == null && mc.screen == null) {
-				int ticksDue = Math.min(10, inputDeltaTracker.advanceTime(Util.getMillis(), true));
-				for (int i = 0; i < ticksDue; i++) {
-					MinecraftAccess access = (MinecraftAccess) mc;
+            if (mc.getOverlay() == null && mc.screen == null) {
+                MinecraftAccess access = (MinecraftAccess) mc;
+                long currentTime = Util.getMillis();
 
-					int rightClickDelay = access.getRightClickDelay();
-					if (rightClickDelay > 0) {
-						access.setRightClickDelay(rightClickDelay - 1);
-					}
-					access.invokeHandleKeybinds();
-				}
+                int ticksDue = inputDeltaTracker.advanceTime(currentTime, true);
+                
+                if (ticksDue > 0) {
+                    if (currentTime != lastInputTime) {
+                        access.invokeHandleKeybinds();
+                        lastInputTime = currentTime; 
+                    }
+                }
+            }
+        });
+    }
 
-				if (mc.missTime > 0) {
-					mc.missTime--;
-				}
-			}
-		});
-	}
-
-	static float tickTargetMspt(float defaultValue) {
-		return defaultValue;
-	}
+    static float tickTargetMspt(float defaultValue) {
+        return defaultValue;
+    }
 }
